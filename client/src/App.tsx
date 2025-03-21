@@ -1,35 +1,61 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect, useState } from "react";
+import io from "socket.io-client";
+import crypto from "crypto-browserify";
 
-function App() {
-  const [count, setCount] = useState(0)
+
+const socket = io("http://localhost:3001");
+
+const App: React.FC = () => {
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState<string[]>([]);
+
+  useEffect(() => {
+    socket.on("chat message", (msg) => {
+      setChat((prev) => [...prev, msg]);
+    });
+
+    socket.on("publicKey", ({ publicKey, prime, generator }) => {
+      console.log("Received public key from server");
+
+      const clientDH = crypto.createDiffieHellman(
+        Buffer.from(prime, "base64"),
+        Buffer.from(generator, "base64")
+      );
+      const clientPublicKey = clientDH.generateKeys("base64");
+
+      socket.emit("clientPublicKey", clientPublicKey);
+      console.log("Sent client public key to server");
+    });
+
+    return () => {
+      socket.off("chat message");
+      socket.off("publicKey");
+    };
+  }, []);
+
+  const sendMessage = () => {
+    if (message.trim()) {
+      socket.emit("chat message", message);
+      setMessage("");
+    }
+  };
 
   return (
-    <>
+    <div>
+      <h1>Real-Time Chat</h1>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        {chat.map((msg, index) => (
+          <p key={index}>{msg}</p>
+        ))}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+      <input
+        type="text"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+      <button onClick={sendMessage}>Send</button>
+    </div>
+  );
+};
 
-export default App
+export default App;

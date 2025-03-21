@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { generateKeyPair, computeSharedSecret } from "./deffieHellman";
+import { generateKeyPair, computeSharedSecret } from "./deffieHellman.ts";
 
 export const setupSocket = (io: Server) => {
   io.on("connection", (socket: Socket) => {
